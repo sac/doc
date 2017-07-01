@@ -1,0 +1,112 @@
+\documentclass{article}
+\title{Solaris disk naming conventions\footnote{http://multiboot.solaris-x86.org/iv/3.html}}
+\author{}
+\date{}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+  This document briefly explains how Solaris/illumos name the disk
+  partitions. And a comparison is made with GNU/Linux systems. Note that this is
+  legacy, newer operating system versions use ZFS and it is all new way of doing
+  things which will be discussed in another document.
+\end{abstract}
+
+\section*{Disk addressing conventions}
+
+On GNU/Linux systems SATA disks are named sda, sdb, sdc ... so on. And
+the partitions on the disk are numbered from 1, i.e sda1, sda2, sda3 ... so
+on.\vspace{0.1in}
+
+On Solaris/illumos systems the disks are named using a different
+convention. Combination of Disk {\bf c}ontroller, SCSI {\bf t}arget, {\bf d}isk
+number, {\bf s}lice number, and {\bf p}artition number is used. Syntax for disk
+entries on Solaris is shown below:\vspace{0.1in}
+
+{\bf c}C [ {\bf t}T ] {\bf d}D \( {\bf s}S \ | \ {\bf p}P \) \vspace{0.1in}
+\\
+If you note above {\em t} appears only if you have a {\em SCSI} disk. \vspace{0.1in}
+
+Where {\em C, T, D, S,} and {\em P} are non-negative decimal numbers. Actually,
+a disk entry is a complete address of a slice or a partition, and consists of
+two parts: logical device address formed by {\bf c, t, d,} and slice {\bf s} or
+partition {\bf p} address on that device.\vspace{0.1in}
+
+For example if you have a single SATA disk, your partitions might look like:\vspace{0.1in}
+
+{\bf /dev/rdsk/c1d0s1 ... /dev/rdsk/c1d0s16} or
+
+{\bf /dev/rdsk/c1d0p1 ... /dev/rdsk/c1d0p4}
+
+\begin{description}
+
+\item[C] is the logical controller number, i.e. the number of an IDE adapter
+(actually its channel), SCSI host bus adapter or the like. It is assigned by
+disks utility, or by devfsadm on newer systems. First time the utility is run
+during Solaris installation, and consecutive numbers are assigned for particular
+disk controllers, so that IDE controllers take precedence before SCSI ones. The
+utility may be invoked later during system reconfiguration or manually by the
+superuser to add new disks. Then, consecutive numbers are assigned to the new
+controllers found on the system. E.g. if Solaris is installed on a machine with
+only primary IDE channel being in use and one SCSI adapter they have numbers 0
+and 1 respectively, when a new IDE device is attached to a free secondary
+channel it will get the number 2.
+
+\item[T] is the target (logical unit number) of the SCSI device, i.e. the
+identification number of the device in a SCSI chain. Obviously, IDE disks have
+no t specified in their addresses.
+
+\item[D] is the number of the disk attached to the controller. Note that in case of an
+IDE adapter, two IDE devices may be attached to a single channel, then 0
+represents the master device, and 1 the slave one.
+
+\item[S] is the number of the slice within a Solaris partition. Each Solaris partition
+can have up to 16 slices numbered 0 through 15. There are 21 special files per a
+disk device, 0 through 15 correspond to slices within the first Solaris
+partition on a disk (see Slices and VTOC).
+
+\item[P] equal to 0 means entire disk, values 1, 2, 3, 4 represent consecutive
+partitions on a disk. These 5 entries correspond to disk special files 16
+through 20. Pp is the FDISK partition number used by fdisk(1M).
+
+\end{description}
+
+\section*{Slices and VTOC}
+
+Every Solaris partition is divided into smaller chunks called slices. They
+resemble x86 fdisk partitions of hard disk drive. Up to 16 slices may be defined
+per a Solaris partition. Only slices within the first Solaris partition can be
+addresses by s0 through s15. Note however that there are still up to 4 Solaris
+partitions per a disk allowed.
+
+Some slices are reserved or have special meaning. Slice 2 is a backup slice
+representing entire Solaris partition. Slice 8 is a boot slice representing the
+first cylinder of the Solaris partition, containing partition boot block pboot,
+Solaris disk label, VTOC and boot manager program bootblk. Slices 2 and 8 are
+unmountable. Slice 9 is an alternates slice that uses 2 cylinders. Slices 2, 8
+and 9 are reserved and should not be redefined. Slice 0 is usually a root slice
+containing the root file system. The following tags may be assigned to slices:
+swap, usr, stand, var and home (see fmthard man page).
+
+There are 4 possible states of a slice. They are determined by two flags
+specified when the slice is defined. One determines if the slice is mountable,
+the other if it is read-only.
+
+Slices can be defined using fmthard or interactive format utility. format always
+shows 0 through 9 slices, including undefined ones. To define a slice we need to
+specify its number, tag, flag, starting sector relative to Solaris partition and
+its size.
+
+All the information about slices is kept in a Volume Table Of Contents, shortly
+VTOC. Together with Solaris disk label VTOC occupies the second and third sector
+of a boot slice - the first cylinder of a Solaris partition. It can be printed
+out with prtvtoc utility. It is recommended to print and save all
+VTOCs\footnote{http://illumos.org/man/1M/prtvtoc - for printing VTOC} after
+the system is setup to have them handy in the case of emergency.
+
+\section*{Exercise}
+On your OpenIndiana machine run the command fdisk /dev/rdsk/c1d0p0 or maybe
+/dev/rdsk/c0d0p0 or maybe something else... try figuring out. Do not write
+anything to disk, just play around.
+
+\end{document}
